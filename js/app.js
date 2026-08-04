@@ -507,5 +507,5 @@ const App = (() => {
   window.addEventListener('hashchange', route);
   window.addEventListener('DOMContentLoaded', () => { restore(); route(); });
 
-  return { state, addToCart, giftCardHTML, toast, esc };
+  return { state, addToCart, giftCardHTML, toast, esc, track };
 })();

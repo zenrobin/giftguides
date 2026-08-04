@@ -28,16 +28,20 @@ const Wrapped = (() => {
       try {
         const q = MOOD_QUERY[toneKey] || 'uplifting warm cinematic';
         const r = await fetch('/api/soundstripe?q=' + encodeURIComponent(q));
-        if (!r.ok) throw new Error('api unavailable');
-        const t = await r.json();
-        if (!t.url) throw new Error('no track');
+        const t = await r.json().catch(() => ({}));
+        if (!r.ok || !t.url) throw new Error(t.error || 'HTTP ' + r.status);
         this.audio = new Audio(t.url);
         this.audio.loop = true;
         this.audio.volume = 0.35;
-        this.audio.crossOrigin = 'anonymous';
         this.credit = `♪ ${t.title} — ${t.artist} · Soundstripe`;
-      } catch {
-        this.credit = '♪ ambient pad (Soundstripe key not configured — offline fallback)';
+        App.track('music_loaded', { title: t.title, artist: t.artist });
+      } catch (err) {
+        // Fallback reason goes to the credit line + ⚙ console so it's diagnosable
+        const reason = String(err.message || err).slice(0, 140);
+        this.credit = `♪ ambient pad — Soundstripe unavailable (${reason})`;
+        console.warn('[wrapped music] falling back to ambient pad:', reason,
+          '· open /api/soundstripe?debug=1 on the deployed site for the full attempt log');
+        App.track('music_fallback', { reason });
       }
       this.updateUI();
       this.start(); // counts as within the load-triggering gesture where possible
