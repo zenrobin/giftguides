@@ -23,7 +23,7 @@ const Gifts = (() => {
   // offered across products. The collage/stairway/magnet formats are concepts.
   const SET_VARIANTS = [
     { key: 'collage', product: 'Collage Frame', spec: 'One frame · single matte board · one cut-out opening per person', price: 89.99, mock: 'collage', concept: true },
-    { key: 'canvascollage', product: 'Canvas Collage Print', spec: '20×24″ single canvas · grid layout printed as one image', price: 64.99, mock: 'canvas', concept: true },
+    { key: 'canvascollage', product: 'Canvas Collage Print', spec: '20×24″ single canvas · grid layout printed as one image', price: 64.99, mock: 'canvascollage', concept: true },
     { key: 'stairway', product: 'Stairway Gallery Set', spec: 'One framed print per person · stepped layout for the stairway wall', price: 129.99, mock: 'stairfames', concept: true },
     { key: 'magnets', product: 'Photo Magnet Set', spec: 'One magnet per person · 3×3″ · thick matte board', price: 24.99, mock: 'magnets', concept: true },
     { key: 'prints', product: 'Framed Print Set', spec: 'One 5×7″ frame per person · mix & match', price: 74.99, mock: 'prints', concept: true },

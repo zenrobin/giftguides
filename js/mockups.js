@@ -29,6 +29,15 @@ const Mockups = (() => {
       }
       case 'canvas':
         return `<div class="mock mock-${size} mock-canvas"><div class="canvas-face" ${cover}></div></div>`;
+      case 'canvascollage': {
+        // One canvas, the collage printed as a single image — grid of photos on the wrap
+        const ph = (gift.photos || [gift.cover]).slice(0, 6);
+        return `<div class="mock mock-${size} mock-canvas mock-canvascollage">
+          <div class="canvas-face">
+            ${ph.map(u => `<div class="cc-cell" style="background-image:url('${esc(u)}')"></div>`).join('')}
+          </div>
+        </div>`;
+      }
       case 'frame':
         return `<div class="mock mock-${size} mock-frame"><div class="frame-mat"><div class="frame-photo" ${cover}></div></div></div>`;
       case 'cards': {
