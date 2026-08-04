@@ -34,6 +34,9 @@ const Guide = (() => {
         <b>${a.meta.episodeCount} memories</b> across ${a.meta.cityCount} places.
         We matched the best of them to ${gifts.length} Mixbook creations — each one explains
         exactly which memories it's built from. Tap <b>Create & Gift</b> and it lands in your cart, ready to make.</p>
+        <div class="gh-links">
+          <a class="btn btn-secondary btn-sm" href="#/wrapped">▶ &nbsp;First time? Watch your year, wrapped — it lands right back here</a>
+        </div>
       </div>
 
       ${groups.map(grp => `
@@ -50,7 +53,19 @@ const Guide = (() => {
         <div class="gs-sub">Everything in the Mixbook catalog can start from your memories — previews below use your own photos.</div>
         <div class="browse-strip">${catalogStrip}</div>
       </div>
+
+      <div class="guide-section guide-handoff">
+        <h2 class="serif">Nothing quite it?</h2>
+        <p>Tell the assistant what you're actually looking for. It won't start from zero —
+        it starts from the same ${a.meta.episodeCount} memories this guide was built on.</p>
+        <button class="btn btn-secondary" id="guide-to-story">💬 &nbsp;I'm looking for something different</button>
+      </div>
     </div>`;
+
+    root.querySelector('#guide-to-story').addEventListener('click', () => {
+      sessionStorage.setItem('gg.storyEntry', 'guide-different');
+      location.hash = '#/story';
+    });
   }
 
   return { render };

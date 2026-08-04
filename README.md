@@ -20,6 +20,30 @@ the same personalized gift guide.
 Every experience ends the same way: **Create & Gift** puts a real product (with
 mixbook.com-derived pricing) into a cart to demonstrate the end state. Checkout shows the
 "end of prototype" marker where the real flow would hand off to the Mixbook editor.
+The intended relationship: **Wrapped is the inspiration, the Guide is the jumping-off
+point** — Wrapped's finale lands in the Guide, the Guide can hand off to Story Mode
+("I'm looking for something different"), and the front door can A/B/C-test which one
+greets the user first.
+
+### Notable mechanics
+
+- **Guardrails** — only memories from the last 36 months and above a score floor can
+  drive a gift (a distant wedding from 2012 informs stats, never gifts).
+- **"The Set"** — per-photo person detection finds solo portraits of each family member
+  from one event, offered across formats: collage frame (one matte board, one cut-out
+  per person), single-canvas collage, stairway gallery set, photo magnets, framed print
+  set. Formats marked **Concept product** are new-product ideas.
+- **Group copies** — trips detect traveler count and offer N copies at a volume
+  discount, plus a (concept) shareable purchase page like the school book program.
+- **Age-aware matching** — babies flip gifting toward grandparents; young kids get
+  visual formats; teens get room-decor prints.
+- **Small-archive & no-kids fallbacks** — friends-cluster and personal keepsake gifts
+  keep the guide meaningful for every profile.
+- **Transparency console** — the ⚙ icon opens "Behind the guide": guardrails, every
+  gift rule fired/skipped with its reason, the extracted profile, the upstream Juniper
+  narrative prompt from the export, and the session's experiment/interaction events.
+- **Wrapped music** — a Soundstripe track matched to the year's emotional tone via a
+  serverless proxy; progress bars double as click-to-jump navigation.
 
 All product visuals are CSS mockups **personalized with the user's own photos** (loaded
 from their `media.mixbook.com` URLs in the export) — a photo book wears their cover photo,
@@ -27,13 +51,22 @@ the calendar shows their best month, the cards fan out their holiday shots.
 
 ## Running it
 
-It's a fully static site — no build step, no dependencies.
+The app itself is static — no build step, no dependencies.
 
 ```bash
 cd giftguides
-python3 -m http.server 8000
+python3 -m http.server 8000     # app only; Wrapped falls back to a generated ambient pad
+# or: vercel dev                # app + /api/soundstripe music proxy
 # open http://localhost:8000
 ```
+
+### Vercel setup
+
+- Framework preset **Other**, no build command, root output — all defaults.
+- `api/soundstripe.js` is auto-detected as a serverless function.
+- Add env var **`SOUNDSTRIPE_API_KEY`** (Project → Settings → Environment Variables)
+  to turn on real Soundstripe soundtracks in Wrapped; without it the experience
+  degrades to a generated ambient pad and says so in the credit line.
 
 Then drop a memory export zip (folders like `memory-episode-12345/` containing
 `memory-episode-12345.json` + `-photos.json`) on the front door and hit

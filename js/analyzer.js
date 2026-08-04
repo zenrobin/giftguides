@@ -53,6 +53,7 @@ const Analyzer = (() => {
         mapLocations: mapLocs,
         coverUrl: thumb(ep.cover_photo_id) || (photos[0] && (photos[0].thumbnail_url || photos[0].url)) || null,
         photoUrls: photos.map(p => p.thumbnail_url || p.url).filter(Boolean),
+        photoMeta: photos.map(p => ({ id: p.id, url: p.thumbnail_url || p.url })).filter(p => p.url),
         photoCount: photos.length,
         pullQuotes: (ep.magazine_sections || []).map(s => s.pull_quote).filter(Boolean),
       });
@@ -95,12 +96,87 @@ const Analyzer = (() => {
       }
     }
     people.names = [...nameCounts.entries()].sort((a, b) => b[1] - a[1]).map(([n]) => n).slice(0, 4);
+
+    // Kid life-stage — it changes who the gift is really for.
+    // Babies: the gift is for the grandparents/parents. Young kids: visual,
+    // name-the-people formats. Teens: prints & room decor, smaller formats.
+    if (/\b(baby|infant|newborn|toddler)\b/i.test(blob)) people.kidStage = 'baby';
+    else if (/\b(high school|teenager|teen|prom|college|young adult)\b/i.test(blob)) people.kidStage = 'teen';
+    else if (/\b(young (girl|boy)|elementary|middle school|grade school|kindergarten)\b/i.test(blob)) people.kidStage = 'young';
+    else people.kidStage = (people.kids || people.names.length) ? 'young' : null;
     return people;
   }
 
+  /* One photo of each person from a single high-energy event — the raw
+   * material for "the set" gift (collage frame / magnets / print set).
+   * Uses the per-photo analysis files to find frames featuring one clear person.
+   */
+  function extractMemberSet(files, episodes) {
+    const candidates = episodes
+      .filter(e => e.photoCount >= 5 && e.coverUrl)
+      .filter(e => ['Celebrations', 'Travel', 'National & Faith Holidays', 'Family'].some(c => e.categories.includes(c)))
+      .sort((a, b) => b.score - a.score);
+
+    for (const ep of candidates.slice(0, 6)) {
+      const picks = [];
+      const seenWho = new Set();
+      for (const pm of ep.photoMeta) {
+        let analysis = null;
+        for (const [path, text] of files) {
+          if (path.includes(`memory-episode-${ep.id}-photos/photo-${pm.id}-analysis`)) {
+            try { analysis = JSON.parse(text); } catch { /* skip */ }
+            break;
+          }
+        }
+        if (!analysis) continue;
+        const persons = (analysis.key_elements || []).filter(k => k.startsWith('person:')).map(k => k.slice(7).trim());
+        if (persons.length !== 1) continue; // want solo portraits — one person per opening
+        const who = persons[0];
+        if (!who || who.length > 30 || /redact|unknown|unidentified/i.test(who)) continue; // drop noisy detector labels
+        const whoKey = who.toLowerCase().replace(/\b(a|an|the)\b/g, '').trim();
+        if (seenWho.has(whoKey)) continue;
+        seenWho.add(whoKey);
+        picks.push({ url: pm.url, who, score: analysis.scores?.memory_value || 0 });
+      }
+      if (picks.length >= 3) {
+        return {
+          episodeTitle: ep.title,
+          episodeDescriptive: ep.descriptive,
+          photos: picks.sort((a, b) => b.score - a.score).slice(0, 6),
+        };
+      }
+    }
+    return null;
+  }
+
   function analyze(files) {
-    const episodes = parseEpisodes(files);
-    if (!episodes.length) throw new Error('No memory episodes found in this zip. Expected folders like memory-episode-12345/.');
+    const allEpisodes = parseEpisodes(files);
+    if (!allEpisodes.length) throw new Error('No memory episodes found in this zip. Expected folders like memory-episode-12345/.');
+
+    /* Gifting guardrails — a memory being in the archive doesn't make it
+     * giftable (a distant friend's wedding from 2012 shouldn't drive a gift).
+     * 1. Recency: only memories from the RECENCY_MONTHS before the newest one.
+     * 2. Signal: below MIN_SCORE, a memory can inform stats but not gifts.
+     */
+    const RECENCY_MONTHS = 36, MIN_SCORE = 40;
+    const allDates = allEpisodes.map(e => e.date).filter(Boolean).sort();
+    const newest = allDates[allDates.length - 1];
+    let cutoff = null;
+    if (newest) {
+      const d = new Date(newest);
+      d.setMonth(d.getMonth() - RECENCY_MONTHS);
+      cutoff = d.toISOString();
+    }
+    const episodes = allEpisodes.filter(e => !cutoff || !e.date || e.date >= cutoff);
+    const lowSignal = new Set(episodes.filter(e => e.score < MIN_SCORE).map(e => e.id));
+    const guardrails = {
+      recencyMonths: RECENCY_MONTHS,
+      minScore: MIN_SCORE,
+      totalInArchive: allEpisodes.length,
+      droppedAsTooOld: allEpisodes.length - episodes.length,
+      belowScoreThreshold: lowSignal.size,
+      note: 'Old and low-signal memories still count toward stats, but never drive a gift.',
+    };
 
     // --- counts, dates, places ---
     const catCounts = new Map(), locCounts = new Map(), toneCounts = new Map(), monthBest = new Map();
@@ -122,19 +198,26 @@ const Analyzer = (() => {
     const topCategories = [...catCounts.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c);
     const topTone = [...toneCounts.entries()].sort((a, b) => b[1] - a[1])[0];
 
-    // --- clusters ---
+    // --- clusters (gift-eligible memories only: recency + score guardrails) ---
+    const giftable = episodes.filter(e => !lowSignal.has(e.id));
     const has = (e, cat) => e.categories.includes(cat);
     const clusters = {
-      travel: episodes.filter(e => has(e, 'Travel')).sort((a, b) => b.score - a.score),
-      holidays: episodes.filter(e => has(e, 'National & Faith Holidays')).sort((a, b) => b.score - a.score),
-      celebrations: episodes.filter(e => has(e, 'Celebrations')).sort((a, b) => b.score - a.score),
-      milestones: episodes.filter(e => has(e, 'Milestones') || has(e, 'Achievements')).sort((a, b) => b.score - a.score),
-      everyday: episodes.filter(e => has(e, 'Everyday Life') || has(e, 'Family')).sort((a, b) => b.score - a.score),
-      friends: episodes.filter(e => has(e, 'Friendships')).sort((a, b) => b.score - a.score),
-      romantic: episodes.filter(e => has(e, 'Relationships (Romantic)')).sort((a, b) => b.score - a.score),
+      travel: giftable.filter(e => has(e, 'Travel')).sort((a, b) => b.score - a.score),
+      holidays: giftable.filter(e => has(e, 'National & Faith Holidays')).sort((a, b) => b.score - a.score),
+      celebrations: giftable.filter(e => has(e, 'Celebrations')).sort((a, b) => b.score - a.score),
+      milestones: giftable.filter(e => has(e, 'Milestones') || has(e, 'Achievements')).sort((a, b) => b.score - a.score),
+      everyday: giftable.filter(e => has(e, 'Everyday Life') || has(e, 'Family')).sort((a, b) => b.score - a.score),
+      friends: giftable.filter(e => has(e, 'Friendships')).sort((a, b) => b.score - a.score),
+      romantic: giftable.filter(e => has(e, 'Relationships (Romantic)')).sort((a, b) => b.score - a.score),
     };
 
-    const topMoments = [...episodes].sort((a, b) => b.score - a.score).filter(e => e.coverUrl).slice(0, 8);
+    const topMoments = [...giftable].sort((a, b) => b.score - a.score).filter(e => e.coverUrl).slice(0, 8);
+
+    // Upstream transparency: the actual Juniper prompt that generated the narratives.
+    let upstreamPrompt = null;
+    for (const [path, text] of files) {
+      if (/narrative-prompt\.txt$/.test(path)) { upstreamPrompt = text.slice(0, 4000); break; }
+    }
 
     const TONE_LABELS = {
       joyful_and_playful: { label: 'Joyful & Playful', line: 'If your months had a soundtrack, it would be laughter.' },
@@ -171,6 +254,9 @@ const Analyzer = (() => {
       monthlyBest: [...monthBest.entries()].sort().map(([month, e]) => ({
         month, label: MONTHS[+month.slice(5, 7) - 1], url: e.coverUrl, title: e.title,
       })),
+      memberSet: extractMemberSet(files, giftable),
+      guardrails,
+      upstreamPrompt,
     };
   }
 

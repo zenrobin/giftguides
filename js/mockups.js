@@ -44,6 +44,28 @@ const Mockups = (() => {
           ${ph.map((u, i) => `<div class="print-item print-${i}" style="background-image:url('${esc(u)}')"></div>`).join('')}
         </div>`;
       }
+      case 'collage': {
+        // Single matte board, one cut-out opening per person — grandma's knife-and-photo-board trick, productized
+        const ph = (gift.photos || [gift.cover]).slice(0, 6);
+        return `<div class="mock mock-${size} mock-collage">
+          <div class="collage-mat">
+            ${ph.map(u => `<div class="collage-opening" style="background-image:url('${esc(u)}')"></div>`).join('')}
+          </div>
+        </div>`;
+      }
+      case 'stairfames': {
+        const ph = (gift.photos || [gift.cover]).slice(0, 4);
+        return `<div class="mock mock-${size} mock-stairs">
+          ${ph.map((u, i) => `<div class="stair-frame stair-${i}" style="background-image:url('${esc(u)}')"></div>`).join('')}
+          <div class="stair-steps"></div>
+        </div>`;
+      }
+      case 'magnets': {
+        const ph = (gift.photos || [gift.cover]).slice(0, 5);
+        return `<div class="mock mock-${size} mock-magnets">
+          ${ph.map((u, i) => `<div class="magnet-item magnet-${i}" style="background-image:url('${esc(u)}')"></div>`).join('')}
+        </div>`;
+      }
       default:
         return `<div class="mock mock-${size} mock-book"><div class="book-cover" ${cover}></div></div>`;
     }

@@ -54,6 +54,17 @@ const Story = (() => {
   const unseen = () => gifts.filter(x => !shown.has(x.id));
 
   // ── conversation nodes ──
+  async function openingFromGuide() {
+    await bot(`So the guide didn't nail it — good, I like a challenge. You browsed the whole list, which tells me the obvious picks (the year book, the trip book) aren't what you're after.`, 1000);
+    await bot(`Help me narrow it: what was off? Too predictable, too big, or is it for someone the guide didn't cover?`, 1100);
+    chips([
+      ['Too predictable — surprise me', surprise],
+      ['Something smaller / cheaper', budget],
+      ['It’s for someone specific', () => { botThen('Tell me who — or pick from your usual suspects:', mainChips); }],
+      ['Actually, show me the classics', forFamily],
+    ]);
+  }
+
   async function opening() {
     const p = a.people;
     const names = p.names.slice(0, 2);
@@ -168,6 +179,8 @@ const Story = (() => {
     if (/(holiday|christmas|card)/.test(t)) return holidays();
     if (/(cheap|budget|under|affordable|\$)/.test(t)) return budget();
     if (/(calendar)/.test(t) && g('calendar')) return (async () => { await bot('A calendar is the sleeper hit of photo gifts — 365 days of shelf time:', 900); await giftCard(g('calendar')); followUps(); })();
+    if (/(collage|magnet|set of|everyone|each kid|whole family photo)/.test(t) && g('memberset'))
+      return (async () => { await bot('You want everyone in one gift — that’s exactly what “the set” is for. One photo per person, one moment, your pick of format:', 900); await giftCard(g('memberset')); followUps(); })();
     if (/(canvas|wall|print|frame)/.test(t)) return (async () => { await bot('For walls, I have two favorites from your year:', 900); await giftCard(g('canvas') || g('milestoneframe')); followUps(); })();
     if (/(surprise|idea|another|more|else)/.test(t)) return another();
     return (async () => {
@@ -198,7 +211,10 @@ const Story = (() => {
       chipsEl.innerHTML = '';
       handleFreeText(v);
     });
-    opening();
+    const entry = sessionStorage.getItem('gg.storyEntry');
+    sessionStorage.removeItem('gg.storyEntry');
+    if (entry === 'guide-different') openingFromGuide();
+    else opening();
   }
 
   return { render };
